@@ -29,7 +29,7 @@ sistema-reservas-restaurante/
 | **Administrador** | Panel completo: mesas, reservas, pedidos, despachos y usuarios |
 | **Mesero** | Mesas, reservas, pedidos y despachos |
 | **Cocina** | Cola de platos pendientes y en preparación |
-| **Despacho** | Gestión de entregas a mesas |
+| **Despacho** | Gestión de entregas a mesas 
 
 ## Usuarios demo
 
