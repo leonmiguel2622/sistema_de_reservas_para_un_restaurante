@@ -1,0 +1,56 @@
+const script = {
+  async initDashboard() {
+    // Validar usuario e integridad de almacenamiento
+    const user = await storage.getCurrentUser();
+
+    // Ocultar todas las secciones de vista
+    document.querySelectorAll('main > section').forEach(sec => sec.classList.add('hidden'));
+    document.getElementById('user-info-bar').classList.add('hidden');
+
+    // Si no hay sesión válida o fue alterada, redirigir a Login
+    if (!user) {
+      document.getElementById('view-login').classList.remove('hidden');
+      return;
+    }
+
+    // Mostrar barra de información superior
+    const userBar = document.getElementById('user-info-bar');
+    userBar.classList.remove('hidden');
+    document.getElementById('nav-user-name').textContent = user.name;
+    document.getElementById('nav-user-role').textContent = user.role.toUpperCase();
+
+    // Mapa estricto de vistas autorizadas por rol
+    const roleViewMap = {
+      cliente: 'view-cliente',
+      cocina: 'view-cocina',
+      despacho: 'view-despacho',
+      admin: 'view-admin'
+    };
+
+    const targetViewId = roleViewMap[user.role];
+
+    if (targetViewId) {
+      const targetElement = document.getElementById(targetViewId);
+      if (targetElement) {
+        targetElement.classList.remove('hidden');
+        this.renderRoleContent(user.role);
+      }
+    } else {
+      console.error('Acceso denegado: Rol no reconocido');
+      auth.logout();
+    }
+  },
+
+  renderRoleContent(role) {
+    // Aquí puedes invocar los métodos de renderizado según el módulo
+    if (role === 'cliente' && typeof menu !== 'undefined') {
+      // menu.renderClientCatalog();
+    } else if (role === 'cocina' && typeof orders !== 'undefined') {
+      // orders.renderKitchenQueue();
+    }
+  }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  script.initDashboard();
+});

@@ -1,0 +1,141 @@
+/**
+ * Lógica de Procesamiento de Pedidos (Cocina, Despacho, Admin)
+ */
+const ordersApp = (() => {
+  let mapInstance = null;
+
+  // Render Comandero de Cocina
+  const renderKitchen = () => {
+    const orders = StorageModule.get(StorageModule.KEYS.ORDERS) || [];
+    const kitchenGrid = document.getElementById('kitchen-orders-grid');
+    kitchenGrid.innerHTML = '';
+
+    const pendingOrders = orders.filter(o => o.status === 'pendiente' || o.status === 'en_preparacion');
+
+    if (pendingOrders.length === 0) {
+      kitchenGrid.innerHTML = '<p class="text-gray-400 col-span-full">No hay pedidos pendientes en comanda.</p>';
+      return;
+    }
+
+    pendingOrders.forEach(ord => {
+      const card = document.createElement('div');
+      card.className = `p-4 rounded-xl border ${ord.status === 'pendiente' ? 'bg-gray-800 border-yellow-500/50' : 'bg-gray-800 border-blue-500/50'}`;
+      
+      const itemsHtml = ord.items.map(i => `<li class="text-xs text-gray-300">${i.qty}x ${i.name}</li>`).join('');
+
+      card.innerHTML = `
+        <div class="flex justify-between items-center mb-2">
+          <span class="font-bold text-yellow-400">#${ord.id}</span>
+          <span class="text-xs text-gray-400">${ord.createdAt}</span>
+        </div>
+        <p class="text-sm font-semibold text-white mb-2">Cliente: ${ord.user}</p>
+        <ul class="mb-4 space-y-1 list-disc list-inside bg-gray-900 p-2 rounded">${itemsHtml}</ul>
+        <div class="flex space-x-2">
+          ${ord.status === 'pendiente' 
+            ? `<button onclick="ordersApp.updateStatus('${ord.id}', 'en_preparacion')" class="w-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2 rounded">Iniciar Preparación</button>`
+            : `<button onclick="ordersApp.updateStatus('${ord.id}', 'listo')" class="w-full bg-green-600 hover:bg-green-500 text-white text-xs font-bold py-2 rounded">Marcar como Listo</button>`
+          }
+        </div>
+      `;
+      kitchenGrid.appendChild(card);
+    });
+  };
+
+  // Render Panel de Despacho
+  const renderDispatch = () => {
+    const orders = StorageModule.get(StorageModule.KEYS.ORDERS) || [];
+    const list = document.getElementById('dispatch-orders-list');
+    list.innerHTML = '';
+
+    const readyOrders = orders.filter(o => o.status === 'listo');
+
+    if (readyOrders.length === 0) {
+      list.innerHTML = '<p class="text-gray-400 text-sm">No hay pedidos pendientes de entrega.</p>';
+    }
+
+    readyOrders.forEach(ord => {
+      const card = document.createElement('div');
+      card.className = 'bg-gray-800 p-4 rounded-xl border border-green-500/40 space-y-2';
+      card.innerHTML = `
+        <div class="flex justify-between items-center">
+          <span class="font-bold text-purple-300">#${ord.id}</span>
+          <span class="text-xs bg-green-900 text-green-300 px-2 py-0.5 rounded font-bold">Listo</span>
+        </div>
+        <p class="text-sm text-gray-200">Para: <strong>${ord.user}</strong></p>
+        <p class="text-xs text-yellow-400 font-bold">Total: $${ord.total.toLocaleString()}</p>
+        <button onclick="ordersApp.updateStatus('${ord.id}', 'entregado')" class="w-full bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold py-1.5 rounded">
+          Marcar como Entregado
+        </button>
+      `;
+      list.appendChild(card);
+    });
+
+    initMap(readyOrders);
+  };
+
+  // Inicializador del Mapa (Leaflet.js)
+  const initMap = (readyOrders) => {
+    if (!mapInstance) {
+      // Coordenadas iniciales: Bucaramanga
+      mapInstance = L.map('map').setView([7.1193, -73.1227], 13);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap'
+      }).addTo(mapInstance);
+    }
+
+    readyOrders.forEach(ord => {
+      if (ord.coords) {
+        L.marker(ord.coords).addTo(mapInstance)
+          .bindPopup(`<b>Pedido #${ord.id}</b><br>Cliente: ${ord.user}`);
+      }
+    });
+  };
+
+  // Render Panel de Administración
+  const renderAdmin = () => {
+    const orders = StorageModule.get(StorageModule.KEYS.ORDERS) || [];
+    const reservations = StorageModule.get(StorageModule.KEYS.RESERVATIONS) || [];
+
+    const totalSales = orders.reduce((sum, o) => sum + o.total, 0);
+    document.getElementById('admin-total-sales').textContent = `$${totalSales.toLocaleString()}`;
+    document.getElementById('admin-total-orders').textContent = orders.length;
+    document.getElementById('admin-total-reserves').textContent = reservations.length;
+
+    const table = document.getElementById('admin-history-table');
+    table.innerHTML = '';
+
+    orders.forEach(ord => {
+      const row = document.createElement('tr');
+      row.className = 'border-b border-gray-700/50 hover:bg-gray-800/50';
+      row.innerHTML = `
+        <td class="p-3 font-semibold text-purple-300">#${ord.id}</td>
+        <td class="p-3">${ord.user}</td>
+        <td class="p-3 text-xs text-gray-400">Pedido</td>
+        <td class="p-3 font-bold text-yellow-400">$${ord.total.toLocaleString()}</td>
+        <td class="p-3"><span class="px-2 py-0.5 text-xs rounded bg-gray-700 text-gray-300 uppercase">${ord.status}</span></td>
+      `;
+      table.appendChild(row);
+    });
+  };
+
+  const updateStatus = (orderId, newStatus) => {
+    const orders = StorageModule.get(StorageModule.KEYS.ORDERS) || [];
+    const ord = orders.find(o => o.id === orderId);
+    if (ord) {
+      ord.status = newStatus;
+      StorageModule.set(StorageModule.KEYS.ORDERS, orders);
+      
+      const user = auth.getUser();
+      if (user.role === 'cocina') renderKitchen();
+      if (user.role === 'despacho') renderDispatch();
+      if (user.role === 'admin') renderAdmin();
+    }
+  };
+
+  return {
+    renderKitchen,
+    renderDispatch,
+    renderAdmin,
+    updateStatus
+  };
+})();

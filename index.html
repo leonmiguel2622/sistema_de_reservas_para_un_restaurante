@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes">
+  <title>Sistema de Reservas · Restaurante | RestoApp</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <h2><i class="fas fa-utensils"></i> RestoApp</h2>
+    </div>
+    <nav class="sidebar-menu" id="menuContainer">
+      <!-- items dinámicos por rol: js/auth.js + js/app.js -->
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-badge"><i class="fas fa-user-circle"></i> <span id="userNameDisplay">—</span></div>
+      <button class="logout-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</button>
+    </div>
+  </aside>
+
+  <!-- ===== MAIN ===== -->
+  <div class="main-content">
+    <header class="topbar">
+      <span class="hamburger" id="hamburgerBtn" aria-label="Abrir menú"><i class="fas fa-bars"></i></span>
+      <h3 id="viewTitle">Panel</h3>
+      <span class="role-badge" id="roleBadge">Invitado</span>
+    </header>
+    <main class="page-content" id="pageContent">
+      <!-- vistas inyectadas desde js/modules.js via App.render() -->
+    </main>
+  </div>
+
+  <!-- ===== MODAL REUTILIZABLE ===== -->
+  <div class="modal-overlay" id="modalOverlay" aria-hidden="true">
+    <div class="modal" id="modalContent" role="dialog" aria-modal="true">
+      <button class="close-modal" id="modalCloseBtn" aria-label="Cerrar">&times;</button>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <!-- Controladores modulares (orden importa) -->
+  <script src="js/storage.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/modules.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,140 @@
+/**
+ * Lógica del Cliente: Catalogo, Carrito y Reservas
+ */
+const menuApp = (() => {
+  let cart = [];
+
+  const renderMenu = () => {
+    const items = StorageModule.get(StorageModule.KEYS.MENU) || [];
+    const grid = document.getElementById('menu-grid');
+    grid.innerHTML = '';
+
+    items.forEach(item => {
+      const card = document.createElement('div');
+      card.className = 'bg-gray-800 border border-gray-700 rounded-xl p-4 flex flex-col justify-between hover:border-purple-500/50 transition-all';
+      card.innerHTML = `
+        <div>
+          <div class="flex justify-between items-start mb-2">
+            <h3 class="font-bold text-white text-md">${item.name}</h3>
+            <span class="text-xs px-2 py-1 bg-purple-900/60 text-purple-300 rounded font-semibold">${item.category}</span>
+          </div>
+          <p class="text-xs text-gray-400 mb-4">${item.desc}</p>
+        </div>
+        <div class="flex justify-between items-center border-t border-gray-700/50 pt-3">
+          <span class="font-bold text-yellow-400">$${item.price.toLocaleString()}</span>
+          <button onclick="menuApp.addToCart('${item.id}')" class="bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors">
+            + Agregar
+          </button>
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+  };
+
+  const addToCart = (itemId) => {
+    const items = StorageModule.get(StorageModule.KEYS.MENU) || [];
+    const product = items.find(i => i.id === itemId);
+    if (!product) return;
+
+    const existing = cart.find(i => i.id === itemId);
+    if (existing) {
+      existing.qty++;
+    } else {
+      cart.push({ ...product, qty: 1 });
+    }
+    updateCartUI();
+  };
+
+  const updateCartUI = () => {
+    const count = cart.reduce((sum, item) => sum + item.qty, 0);
+    document.getElementById('cart-count').textContent = count;
+
+    const cartContainer = document.getElementById('cart-items');
+    cartContainer.innerHTML = '';
+    let total = 0;
+
+    cart.forEach(item => {
+      const subtotal = item.price * item.qty;
+      total += subtotal;
+      const el = document.createElement('div');
+      el.className = 'flex justify-between items-center text-sm border-b border-gray-700 pb-2';
+      el.innerHTML = `
+        <div>
+          <p class="font-semibold text-white">${item.name}</p>
+          <p class="text-xs text-gray-400">x${item.qty} - $${subtotal.toLocaleString()}</p>
+        </div>
+        <button onclick="menuApp.removeFromCart('${item.id}')" class="text-red-400 hover:text-red-300 text-xs">Quitar</button>
+      `;
+      cartContainer.appendChild(el);
+    });
+
+    document.getElementById('cart-total').textContent = `$${total.toLocaleString()}`;
+  };
+
+  const removeFromCart = (itemId) => {
+    cart = cart.filter(i => i.id !== itemId);
+    updateCartUI();
+  };
+
+  const toggleCartModal = () => {
+    document.getElementById('cart-modal').classList.toggle('hidden');
+  };
+
+  const checkout = () => {
+    if (cart.length === 0) {
+      alert('El carrito está vacío.');
+      return;
+    }
+
+    const user = auth.getUser();
+    const orders = StorageModule.get(StorageModule.KEYS.ORDERS) || [];
+    const total = cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
+
+    const newOrder = {
+      id: 'ord_' + Date.now().toString().slice(-4),
+      user: user.name,
+      items: [...cart],
+      total,
+      status: 'pendiente', // pendiente -> en_preparacion -> listo -> entregado
+      createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      coords: [7.1193 + (Math.random() - 0.5) * 0.02, -73.1227 + (Math.random() - 0.5) * 0.02] // Coordenadas simuladas para Bucaramanga
+    };
+
+    orders.push(newOrder);
+    StorageModule.set(StorageModule.KEYS.ORDERS, orders);
+
+    cart = [];
+    updateCartUI();
+    toggleCartModal();
+    alert('¡Pedido enviado con éxito a la cocina!');
+  };
+
+  const handleReservation = (e) => {
+    e.preventDefault();
+    const user = auth.getUser();
+    const reservations = StorageModule.get(StorageModule.KEYS.RESERVATIONS) || [];
+
+    const newRes = {
+      id: 'res_' + Date.now().toString().slice(-4),
+      user: user.name,
+      datetime: document.getElementById('res-datetime').value,
+      people: document.getElementById('res-people').value,
+      notes: document.getElementById('res-notes').value,
+      createdAt: new Date().toLocaleDateString()
+    };
+
+    reservations.push(newRes);
+    StorageModule.set(StorageModule.KEYS.RESERVATIONS, reservations);
+    alert('¡Reserva registrada con éxito!');
+    e.target.reset();
+  };
+
+  return {
+    render: renderMenu,
+    addToCart,
+    removeFromCart,
+    toggleCartModal,
+    checkout,
+    handleReservation
+  };
+})();
