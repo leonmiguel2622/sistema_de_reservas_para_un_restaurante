@@ -109,16 +109,26 @@ const Auth = (() => {
     try { sessionStorage.removeItem("restoUser"); sessionStorage.removeItem("restoRole"); } catch {}
   }
 
+  const SESSION_TTL_MS = 30 * 60 * 1000; // 30 min expiración
   function getCurrentUser() {
     try {
       const raw = sessionStorage.getItem("restoUser");
       if (!raw) return null;
       const u = JSON.parse(raw);
-      // Verifica que el usuario aún existe y el rol coincide (anti manipulación sessionStorage)
       if (!USERS[u.username] || USERS[u.username].rol !== u.rol) return null;
+      // Expiración de sesión (inactividad)
+      if (u.ts && (Date.now() - u.ts > SESSION_TTL_MS)) {
+        console.warn("[Auth] Sesión expirada por TTL");
+        logout();
+        return null;
+      }
+      // Actualizar timestamp de actividad (sliding)
+      u.ts = Date.now();
+      try { sessionStorage.setItem("restoUser", JSON.stringify(u)); } catch {}
       return u;
     } catch { return null; }
   }
+  function isSessionValid() { return !!getCurrentUser(); }
 
   function hasAccess(rol, viewId) {
     const allowed = PERMISSIONS[viewId];
@@ -140,8 +150,8 @@ const Auth = (() => {
   }
 
   return {
-    USERS, ROLE_LABELS, PERMISSIONS,
-    login, logout, getCurrentUser, hasAccess, getMenuItems, sanitize,
+    USERS, ROLE_LABELS, PERMISSIONS, SESSION_TTL_MS,
+    login, logout, getCurrentUser, isSessionValid, hasAccess, getMenuItems, sanitize,
     _hashPass: hashPass, RATE_LIMIT
   };
 })();

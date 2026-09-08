@@ -7,10 +7,24 @@ const Modules = (() => {
 
   let platosTemp = []; // buffer para modal pedidos
 
-  // ---------- Helpers ----------
+  // ---------- Helpers seguridad ----------
   function getData() { return Storage.getData(); }
-
   function formatDate(dateStr) { return dateStr || "-"; }
+  // Escape HTML para anti-XSS en render (no innerHTML crudo con datos de usuario)
+  function esc(str) {
+    if (typeof str !== "string") return "";
+    return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+  }
+  // Guard de rol en acciones críticas (además del guard de vista)
+  function requireRole(roles) {
+    const u = Auth.getCurrentUser();
+    if (!u || !roles.includes(u.rol)) {
+      alert("Acción no autorizada para tu rol: " + (u?.rol || "invitado"));
+      console.warn("[SEC] Intento no autorizado", { user: u, required: roles });
+      return false;
+    }
+    return true;
+  }
 
   // ---------- DASHBOARD ----------
   function renderDashboard(currentUser) {
@@ -30,7 +44,7 @@ const Modules = (() => {
       </div>
       <div class="card">
         <div class="card-header"><h3>📋 Resumen rápido</h3></div>
-        <p>Bienvenido, <strong>${currentUser.username}</strong>. Rol: <span class="badge">${Auth.ROLE_LABELS[currentUser.rol] || currentUser.rol}</span></p>
+        <p>Bienvenido, <strong>${esc(currentUser.username)}</strong>. Rol: <span class="badge">${esc(Auth.ROLE_LABELS[currentUser.rol] || currentUser.rol)}</span></p>
         <p style="margin-top:10px;color:#5f6b7a;font-size:0.9rem;">Flujo: <strong>Reservas</strong> → <strong>Pedidos / platos</strong> → <strong>Cocina</strong> (preparación → listo) → <strong>Despachos</strong> (ruta → entregado). Datos en <code>localStorage</code> encriptado.</p>
       </div>
       <div class="card">
@@ -219,6 +233,7 @@ const Modules = (() => {
   const ESTADOS_PLATO = ["pendiente","preparacion","listo"];
   const ESTADOS_DESPACHO = ["pendiente","ruta","entregado"];
   function cocinaAction(pedidoId, platoNombreRaw, nuevoEstado) {
+    if (!requireRole(["administrador","cocina"])) return;
     const platoNombre = Storage.sanitizeInput(platoNombreRaw);
     if (!ESTADOS_PLATO.includes(nuevoEstado)) { console.warn("Estado plato inválido", nuevoEstado); return; }
     if (!Storage.isValidText(platoNombre,60)) return;
@@ -238,6 +253,7 @@ const Modules = (() => {
   }
 
   function despachoAction(despachoId, nuevoEstado) {
+    if (!requireRole(["administrador","despacho","mesero"])) return;
     if (!ESTADOS_DESPACHO.includes(nuevoEstado)) { console.warn("Estado despacho inválido", nuevoEstado); return; }
     const data = getData();
     const despacho = data.despachos.find(d => d.id === despachoId);
@@ -262,12 +278,15 @@ const Modules = (() => {
   }
 
   function resetData() {
+    if (!requireRole(["administrador"])) return;
     if (!confirm("¿Resetear todos los datos a valores demo? Se borrarán reservas, pedidos y despachos.")) return;
+    console.info("[SEC] Reset demo ejecutado por", Auth.getCurrentUser()?.username);
     Storage.reset();
     App.refresh();
   }
 
   function exportData() {
+    if (!requireRole(["administrador"])) return;
     const data = getData();
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -278,6 +297,7 @@ const Modules = (() => {
   }
 
   function importData(event) {
+    if (!requireRole(["administrador"])) return;
     const file = event.target.files[0];
     if (!file) return;
     if (file.size > 500*1024) { alert("Archivo muy grande (>500KB)"); return; }
@@ -351,6 +371,7 @@ const Modules = (() => {
   }
 
   function saveReserva() {
+    if (!requireRole(["administrador","mesero"])) return;
     const data = getData();
     const mesaId = parseInt(document.getElementById("modalMesa")?.value);
     const fechaRaw = document.getElementById("modalFecha")?.value || "";
@@ -410,6 +431,7 @@ const Modules = (() => {
   }
 
   function savePedido(id) {
+    if (!requireRole(["administrador","mesero"])) return;
     const data = getData();
     const mesaId = parseInt(document.getElementById("modalMesaPedido")?.value);
     if (!Storage.isValidNumber(mesaId,1,100)) { alert("Seleccione mesa válida"); return; }
@@ -460,6 +482,7 @@ const Modules = (() => {
   }
 
   function saveDespacho() {
+    if (!requireRole(["administrador","despacho","mesero"])) return;
     const data = getData();
     const pedidoId = parseInt(document.getElementById("modalPedidoDespacho")?.value);
     if (!Storage.isValidNumber(pedidoId,1,Number.MAX_SAFE_INTEGER)) { alert("Pedido inválido"); return; }

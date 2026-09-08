@@ -46,6 +46,18 @@ const App = (() => {
     } else {
       showLogin();
     }
+
+    // Auto-logout por inactividad (30 min TTL) + chequeo cada 60s
+    setInterval(() => {
+      if (currentUser && !Auth.isSessionValid()) {
+        alert("Sesión expirada por inactividad (30 min). Ingrese de nuevo.");
+        handleLogout();
+      }
+    }, 60 * 1000);
+    // También validar en cada interacción
+    ["click","keydown"].forEach(ev => document.addEventListener(ev, () => {
+      if (currentUser) Auth.getCurrentUser(); // sliding refresh
+    }));
   }
 
   function updateUserUI() {
@@ -138,7 +150,9 @@ const App = (() => {
 
   function render(viewId) {
     if (!currentUser) { showLogin(); return; }
-    // permiso
+    // validar sesión no expirada
+    if (!Auth.isSessionValid()) { alert("Sesión expirada"); handleLogout(); return; }
+    // permiso por rol (guardia de vista)
     if (!Auth.hasAccess(currentUser.rol, viewId)) {
       pageContent.innerHTML = `<div class="card"><h3><i class="fas fa-ban" style="color:#b23c1c;"></i> Acceso denegado</h3><p style="color:#5f6b7a;">Tu rol <strong>${currentUser.rol}</strong> no tiene permiso para ver <strong>${viewId}</strong>.</p></div>`;
       return;
